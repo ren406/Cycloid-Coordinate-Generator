@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cycloid Curve Generator for Fusion 360</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-accent: #7F5AF0;
+            --secondary-accent: #2CB67D;
+            --background: #16161A;
+            --card-bg: #242629;
+            --text-primary: #FFFFFE;
+            --text-secondary: #94A1B2;
+            --border-radius: 12px;
+            --slider-track: rgba(127, 90, 240, 0.2);       /* Purple-20% opacity */
+            --slider-thumb: #7F5AF0;                       /* Primary purple */
+            --slider-thumb-hover: #906DFF;                 /* Lighter purple */
+            --slider-focus: rgba(44, 182, 125, 0.3);       /* Green glow */
+        }
+
+        * {
+            font-family: 'Space Grotesk', sans-serif;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--background);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background: var(--card-bg);
+            padding: 2rem 1rem;
+            border-bottom: 2px solid var(--primary-accent);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary-accent), var(--secondary-accent));
+        }
+
+        h1 {
+            font-weight: 600;
+            text-align: center;
+            margin: 0;
+            font-size: 2.5rem;
+            letter-spacing: -1px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 2rem;
+            flex: 1;
+        }
+
+        .controls {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        .control-group {
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .control-group.disabled {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .control-group.hidden {
+            display: none;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        label.disabled {
+            color: var(--text-secondary);
+        }
+
+        input[type="number"], select {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        input[type="number"]:focus, select:focus {
+            border-color: var(--primary-accent);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(127,90,240,0.2);
+        }
+
+        input:disabled, select:disabled {
+            background-color: rgba(255,255,255,0.1);
+            cursor: not-allowed;
+        }
+
+        .range-container {
+            position: relative;
+            margin: 1.5rem 0;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            margin: 1rem 0;
+            background: transparent;
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+
+        input[type="range"]::-moz-range-track {
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+
+        input[type="range"]::-ms-track {
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            background: var(--primary-accent);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            margin-top: -6px;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            height: 18px;
+            width: 18px;
+            background: var(--primary-accent);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            border: none;
+        }
+
+        input[type="range"]::-ms-thumb {
+            height: 18px;
+            width: 18px;
+            background: var(--primary-accent);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        button {
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.8rem;
+            background: var(--primary-accent);
+            color: white;
+            margin: 0.5rem 0;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(127,90,240,0.4);
+        }
+
+        button.secondary-btn {
+            background: var(--secondary-accent);
+        }
+
+        button.secondary-btn:hover {
+            box-shadow: 0 5px 15px rgba(44,182,125,0.4);
+        }
+
+        .visualization {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            border: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1/1;
+            margin: 0 auto;
+        }
+
+        canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .csv-preview {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            border: 1px dashed rgba(255,255,255,0.1);
+            margin-top: 1.5rem;
+        }
+
+        .points-count {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: var(--primary-accent);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            background: var(--card-bg);
+            margin-top: auto;
+            color: var(--text-secondary);
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .beta-badge {
+            position: fixed;
+            top: 20px;
+            right: -50px;
+            transform: rotate(45deg);
+            background: linear-gradient(45deg, var(--primary-accent), var(--secondary-accent));
+            color: white;
+            padding: 0.5rem 3rem;
+            font-size: 0.8rem;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            margin-left: 10px;
+            cursor: help;
+        }
+
+        .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+            text-align: center;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            border: 1px solid var(--primary-accent);
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .range-value {
+            display: inline-block;
+            width: 50px;
+            text-align: right;
+        }
+        .chart-container {
+            transition: opacity 0.2s ease;
+        }
+
+        .chart-container.updating {
+            opacity: 0.7;
+        }
+        /* Track - Background line */
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 6px;
+            background: var(--slider-track);
+            border-radius: 4px;
+        }
+
+        /* Thumb - Draggable handle */
+        input[type="range"]::-webkit-slider-thumb {
+            height: 18px;
+            width: 18px;
+            background: var(--slider-thumb);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: -6px;
+        }
+
+        /* Hover state */
+        input[type="range"]:hover::-webkit-slider-thumb {
+            background: var(--slider-thumb-hover);
+            transform: scale(1.1);
+        }
+
+        /* Focus state */
+        input[type="range"]:focus::-webkit-slider-thumb {
+            box-shadow: 0 0 0 3px var(--slider-focus);
+        }
+
+        /* Firefox support */
+        input[type="range"]::-moz-range-track {
+            background: var(--slider-track);
+        }
+        input[type="range"]::-moz-range-thumb {
+            background: var(--slider-thumb);
+        }
+        input[type="range"]:hover::-moz-range-thumb {
+            background: var(--slider-thumb-hover);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                padding: 0 1rem;
+            }
+            
+            .chart-container {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="beta-badge">BETA</div>
+    
+    <header>
+        <h1>⚡ Cycloid Coordinate Generator</h1>
+        <p class="subtitle">Ren Apps</p>
+    </header>
+
+    <div class="container">
+        <div class="controls">
+            <div class="control-group">
+                <label for="curveType">Curve Type</label>
+                <select id="curveType">
+                    <option value="cycloid">Cycloid</option>
+                    <option value="epicycloid">Epicycloid</option>
+                    <option value="hypocycloid">Hypocycloid</option>
+                    <option value="trochoid">Trochoid</option>
+                </select>
+            </div>
+
+            <div class="control-group" id="baseRadiusGroup">
+                <label for="radius">Base Radius (mm) <span id="radiusValue" class="range-value">50</span></label>
+                <div class="range-container">
+                    <input type="range" id="radius" min="10" max="100" value="50" step="1">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="rollingRadius">Rolling Radius (mm) <span id="rollingRadiusValue" class="range-value">20</span></label>
+                <div class="range-container">
+                    <input type="range" id="rollingRadius" min="1" max="50" value="20" step="1">
+                </div>
+            </div>
+
+            <div class="control-group" id="penOffsetGroup">
+                <label for="penOffset">Pen Offset (mm) <span id="penOffsetValue" class="range-value">20</span></label>
+                <div class="range-container">
+                    <input type="range" id="penOffset" min="0" max="50" value="20" step="1">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="resolution">Resolution (points per revolution)</label>
+                <input type="number" id="resolution" min="10" max="500" value="100" step="1">
+            </div>
+
+            <div class="control-group">
+                <label for="revolutions">Number of Revolutions</label>
+                <input type="number" id="revolutions" min="1" max="20" value="5" step="1">
+            </div>
+
+            <button id="generateBtn">
+                <i class="fas fa-sync-alt"></i> Generate Curve
+            </button>
+
+            <button id="downloadBtn" class="secondary-btn">
+                <i class="fas fa-file-csv"></i> Download CSV
+            </button>
+
+            <button id="copyBtn" class="accent-btn">
+                <i class="fas fa-copy"></i> Copy Points to Clipboard
+            </button>
+        </div>
+
+        <div class="visualization">
+            <h3>Curve Preview</h3>
+            <div class="chart-container">
+                <canvas id="curveChart"></canvas>
+            </div>
+            <div class="points-count">Points generated: <span id="pointsCount">0</span></div>
+            <h3>CSV Preview</h3>
+            <div class="csv-preview" id="csvPreview">
+                Generate a curve to see the CSV preview...
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="license-notice">
+            <p>© 2023 Your Name | 
+              <a href="#license" id="showLicense">Free for non-commercial use</a>
+            </p>
+            <div id="licenseModal" style="display:none; max-width: 300px; background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+              <p style="margin: 0.5rem 0;">Use this freely for personal/educational projects.</p>
+              <p style="margin: 0.5rem 0;">For business/commercial use, <strong>ask for permission</strong>.</p>
+              <button 
+                onclick="document.getElementById('licenseModal').style.display='none'" 
+                style="background: #7F5AF0; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;"
+              >
+                Understood!
+              </button>
+            </div>
+          </div>
+          
+          <script>
+            document.getElementById('showLicense').addEventListener('click', function(e) {
+              e.preventDefault();
+              document.getElementById('licenseModal').style.display='block';
+            });
+          </script>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const curveType = document.getElementById('curveType');
+            const radius = document.getElementById('radius');
+            const rollingRadius = document.getElementById('rollingRadius');
+            const penOffset = document.getElementById('penOffset');
+            const resolution = document.getElementById('resolution');
+            const revolutions = document.getElementById('revolutions');
+            const generateBtn = document.getElementById('generateBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const copyBtn = document.getElementById('copyBtn');
+            const radiusValue = document.getElementById('radiusValue');
+            const rollingRadiusValue = document.getElementById('rollingRadiusValue');
+            const penOffsetValue = document.getElementById('penOffsetValue');
+            const pointsCount = document.getElementById('pointsCount');
+            const csvPreview = document.getElementById('csvPreview');
+            const baseRadiusGroup = document.getElementById('baseRadiusGroup');
+            const penOffsetGroup = document.getElementById('penOffsetGroup');
+            
+            // Chart setup
+            const ctx = document.getElementById('curveChart').getContext('2d');
+            let curveChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Cycloid Points',
+                        data: [],
+                        showLine: true,
+                        borderColor: '#7F5AF0',
+                        backgroundColor: '#7F5AF0',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    aspectRatio: 1,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'X (mm)'
+                            },
+                            type: 'linear',
+                            position: 'center',
+                            beginAtZero: false
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Y (mm)'
+                            },
+                            type: 'linear',
+                            position: 'center',
+                            beginAtZero: false
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `X: ${context.parsed.x.toFixed(2)} mm, Y: ${context.parsed.y.toFixed(2)} mm`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Current curve data
+            let currentCurveData = [];
+
+            // Update range value displays
+            function updateRangeValue(element, target) {
+                target.textContent = element.value;
+            }
+
+
+            // Update control visibility based on curve type
+            function updateControlVisibility() {
+                const curve = curveType.value;
+                
+                // Reset all controls first
+                baseRadiusGroup.classList.remove('hidden', 'disabled');
+                penOffsetGroup.classList.remove('hidden', 'disabled');
+                radius.disabled = false;
+                penOffset.disabled = false;
+                
+                // Apply curve-specific rules
+                switch(curve) {
+                    case 'cycloid':
+                        baseRadiusGroup.classList.add('hidden'); // Completely hide instead of disable
+                        penOffsetGroup.classList.add('hidden');
+                        penOffset.value = rollingRadius.value; // Lock d = r
+                        break;
+                        
+                    case 'trochoid':
+                        baseRadiusGroup.classList.add('hidden');
+                        break;
+                        
+                    case 'epicycloid':
+                    case 'hypocycloid':
+                        // All controls remain visible
+                        break;
+                }
+            }
+
+            // Calculate cycloid points
+            function calculateCycloidPoints() {
+                const R = parseFloat(radius.value);         // Base radius
+                const r = parseFloat(rollingRadius.value);  // Rolling radius
+                const d = parseFloat(penOffset.value);      // Pen distance from rolling circle center
+                const steps = parseInt(resolution.value);   // Points per revolution
+                const revs = parseInt(revolutions.value);   // Number of revolutions
+
+                const points = [];
+                const stepSize = (2 * Math.PI) / steps;
+                const totalSteps = steps * revs;
+
+                for (let i = 0; i <= totalSteps; i++) {
+                    const theta = i * stepSize;
+                    let x, y;
+
+                    switch(curveType.value) {
+                        case 'cycloid':
+                            // Correct cycloid formula (d = r)
+                            x = r * theta - r * Math.sin(theta);
+                            y = r - r * Math.cos(theta);
+                            break;
+                        case 'epicycloid':
+                            x = (R + r) * Math.cos(theta) - d * Math.cos((R + r)/r * theta);
+                            y = (R + r) * Math.sin(theta) - d * Math.sin((R + r)/r * theta);
+                            break;
+                        case 'hypocycloid':
+                            x = (R - r) * Math.cos(theta) + d * Math.cos((R - r)/r * theta);
+                            y = (R - r) * Math.sin(theta) - d * Math.sin((R - r)/r * theta);
+                            break;
+                        case 'trochoid':
+                            x = r * theta - d * Math.sin(theta);
+                            y = r - d * Math.cos(theta);
+                            break;
+                    }
+
+                    points.push({x, y});
+                }
+
+                return points;
+            }
+
+            // Generate the curve
+            function generateCurve() {
+                // Debounce rapid updates
+                if (this.debounce) clearTimeout(this.debounce);
+                this.debounce = setTimeout(() => {
+                    // Rest of your existing generateCurve code...
+                }, 50); // 50ms delay for smoother performance 
+                const points = calculateCycloidPoints();
+                currentCurveData = points;
+
+                // Update chart
+                curveChart.data.datasets[0].data = points.map(p => ({x: p.x, y: p.y}));
+                
+                // Calculate symmetrical bounds
+                const xValues = points.map(p => p.x);
+                const yValues = points.map(p => p.y);
+                
+                const padding = 5;
+                const minX = Math.min(...xValues);
+                const maxX = Math.max(...xValues);
+                const minY = Math.min(...yValues);
+                const maxY = Math.max(...yValues);
+                
+                // Calculate the largest range
+                const xRange = maxX - minX;
+                const yRange = maxY - minY;
+                const maxRange = Math.max(xRange, yRange);
+                
+                // Calculate center points
+                const centerX = (minX + maxX) / 2;
+                const centerY = (minY + maxY) / 2;
+                
+                // Apply symmetrical scaling
+                curveChart.options.scales.x.min = centerX - maxRange/2 - padding;
+                curveChart.options.scales.x.max = centerX + maxRange/2 + padding;
+                curveChart.options.scales.y.min = centerY - maxRange/2 - padding;
+                curveChart.options.scales.y.max = centerY + maxRange/2 + padding;
+
+                curveChart.update();
+                
+                // Update points count
+                pointsCount.textContent = points.length;
+
+                // Update CSV preview
+                updateCsvPreview();
+            }
+
+            // Update CSV preview
+            function updateCsvPreview() {
+                if (currentCurveData.length === 0) {
+                    csvPreview.textContent = "Generate a curve to see the CSV preview...";
+                    return;
+                }
+
+                // Create CSV content
+                let csvContent = "x,y,z\n";
+                currentCurveData.slice(0, 20).forEach(point => {
+                    csvContent += `${point.x.toFixed(3)},${point.y.toFixed(3)},0\n`;
+                });
+
+                if (currentCurveData.length > 20) {
+                    csvContent += `... (${currentCurveData.length - 20} more points)`;
+                }
+
+                csvPreview.textContent = csvContent;
+            }
+
+            // Download CSV file
+            function downloadCsv() {
+                if (currentCurveData.length === 0) {
+                    alert("Please generate a curve first!");
+                    return;
+                }
+
+                const curveTypeName = curveType.options[curveType.selectedIndex].text;
+                const fileName = `${curveTypeName.toLowerCase()}_R${radius.value}_r${rollingRadius.value}_d${penOffset.value}_pts${resolution.value}_rev${revolutions.value}.csv`;
+                
+                const csvData = currentCurveData.map(point => ({
+                    x: point.x.toFixed(4),
+                    y: point.y.toFixed(4),
+                    z: "0"
+                }));
+
+                const csv = Papa.unparse(csvData, {
+                    columns: ["x", "y", "z"],
+                    header: true,
+                    delimiter: ","
+                });
+
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', fileName);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            // Copy points to clipboard
+            function copyPointsToClipboard() {
+                if (currentCurveData.length === 0) {
+                    alert("Please generate a curve first!");
+                    return;
+                }
+
+                const csvData = currentCurveData.map(point => ({
+                    x: point.x.toFixed(4),
+                    y: point.y.toFixed(4),
+                    z: "0"
+                }));
+
+                const csv = Papa.unparse(csvData, {
+                    columns: ["x", "y", "z"],
+                    header: true,
+                    delimiter: ","
+                });
+
+                navigator.clipboard.writeText(csv)
+                    .then(() => {
+                        const originalText = copyBtn.innerHTML;
+                        copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                        setTimeout(() => {
+                            copyBtn.innerHTML = originalText;
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        console.error('Failed to copy: ', err);
+                    });
+            }
+
+            // Event listeners
+            generateBtn.addEventListener('click', generateCurve);
+            downloadBtn.addEventListener('click', downloadCsv);
+            copyBtn.addEventListener('click', copyPointsToClipboard);
+            curveType.addEventListener('change', function() {
+                updateControlVisibility();
+                generateCurve(); // Immediate update
+            });
+            rollingRadius.addEventListener('input', function() {
+                if (curveType.value === 'cycloid') {
+                    penOffset.value = this.value;
+                    penOffsetValue.textContent = this.value;
+                }
+                generateCurve();
+            });
+            const inputElements = [radius, rollingRadius, penOffset, resolution, revolutions];
+            inputElements.forEach(element => {
+                element.addEventListener('input', function() {
+                    // Update the displayed value for range inputs
+                    if (this.type === 'range') {
+                        const targetId = this.id + 'Value';
+                        document.getElementById(targetId).textContent = this.value;
+                    }
+                    
+                    // Special case: keep penOffset = rollingRadius for cycloid
+                    if (curveType.value === 'cycloid' && this.id === 'rollingRadius') {
+                        penOffset.value = this.value;
+                        penOffsetValue.textContent = this.value;
+                    }
+                    
+                    generateCurve(); // Immediate update
+                });
+            });
+
+            // Initialize
+            updateControlVisibility();
+            generateCurve();
+        });
+    </script>
+
+</body>
+</html>
