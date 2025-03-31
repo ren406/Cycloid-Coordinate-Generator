@@ -11,4 +11,4 @@
 Notice
 - too much points might cause your fusion to become unresponsive
 - make sure to save your design before importing
-- more points more smooth curves, adjust number of points to what your system can handle
+- more points → smoother curves, adjust number of points(resolution) to what your system can handle
